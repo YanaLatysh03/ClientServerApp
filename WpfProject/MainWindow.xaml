@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:WpfProject"
         mc:Ignorable="d"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-        Title="MainWindow" Height="450" Width="800">
+        Height="500" Width="800">
     <Grid Background="#FFDADAF9" ShowGridLines="True">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="500"/>
@@ -15,14 +15,15 @@
             <RowDefinition Height="500"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Привет" FontSize="25" FontWeight="Bold" Margin="22,23,597,351"/>
+        <Button HorizontalAlignment="Left" Click="SendData_Click" Content="Отправить" Background="#CCCCFF" Margin="129,199,0,269" Foreground="#DDD83B3B" />
 
-
-        <Button HorizontalAlignment="Left" Click="SendData_Click" Content="Отправить" Background="#CCCCFF" Margin="51,270,0,132" Foreground="#DDD83B3B" />
-
-        <TextBox x:Name="ImageName" materialDesign:HintAssist.Hint="Название картинки" Background="AliceBlue" Width="205" HorizontalAlignment="Left" Margin="22,98,0,372"/>
-        <Button x:Name="LoadImage" Content="Загрузить картинку" Click="LoadImage_Click" HorizontalAlignment="Left" Margin="22,180,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="ImageName" materialDesign:HintAssist.Hint="Название картинки" Background="AliceBlue" Width="288" HorizontalAlignment="Left" Margin="45,56,0,408"/>
+        <Button x:Name="LoadImage" Content="Загрузить картинку" Click="LoadImage_Click" HorizontalAlignment="Left" Margin="110,127,0,0" VerticalAlignment="Top"/>
         <Image Name="imgDynamic" Margin="474,106,-250,143"/>
-        <TextBlock x:Name="Path" Background="#FFA4B6B6" HorizontalAlignment="Left" Margin="22,0,0,0" TextWrapping="Wrap" VerticalAlignment="Center" Height="40" Width="352"/>
+        <Button x:Name="GetOne" Content="GetOne" Click="OpenGetOneWindow_Click" HorizontalAlignment="Left" Margin="86,358,0,0" VerticalAlignment="Top"/>
+
+        <Button Content="GetAll" Click="OpenWindowForTable_Click" HorizontalAlignment="Left" Margin="22,413,0,0" VerticalAlignment="Top"/>
+        <Button Content="Delete" Click="OpenGetOneWindow_Click" HorizontalAlignment="Center" Margin="0,358,0,0" VerticalAlignment="Top"/>
+        <Button Content="Update" Click="OpenWindowForUpdate_Click" HorizontalAlignment="Left" Margin="141,413,0,0" VerticalAlignment="Top"/>
     </Grid>
 </Window>

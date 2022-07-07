@@ -1,13 +1,12 @@
 ﻿using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
 using TestProject.Models;
 
 namespace TestProject.Controllers
@@ -17,92 +16,96 @@ namespace TestProject.Controllers
     public class ProductController : ControllerBase
     {
         public static IWebHostEnvironment _environment;
-        private string path = "C:\\Users\\shoto\\source\\repos\\ApiTestProject\\TestProject\\image.json";
+        public static ILogger<ProductController> _logger;
+        private string jsonFile = "image.json";
 
-        public ProductController(IWebHostEnvironment environment)
+        public ProductController(IWebHostEnvironment environment, ILogger<ProductController> logger)
         {
             _environment = environment;
+            _logger = logger;
         }
 
         [HttpPost]
         [Route("uploadImage")]
-        public async Task<string> Post(Product product)
+        public ActionResult Post(ImageByteModel product)
         {
-            FileStream fc = new FileStream(product.Path, FileMode.Open);
+            if (product.ImageByteArray == default && product.Name.Length == default)
+            {
+                return BadRequest(new { errorText = "Incorrect request body." });
+            }
 
             try
             {
-                if (fc.Length > 0)
+                using var ms = new MemoryStream(product.ImageByteArray);
+
+                using var image = Image.FromStream(ms);
+
+                using var fc = new MemoryStream();
+                image.Save(fc, ImageFormat.Jpeg);
+
+                if (!Directory.Exists($"{_environment.WebRootPath}\\Upload\\"))
                 {
-                    if (!Directory.Exists(_environment.WebRootPath + "\\Upload\\"))
-                    {
-                        Directory.CreateDirectory(_environment.WebRootPath + "\\Upload\\");
-                    }
-                    using (FileStream fileStream = System.IO.File.Create(_environment.WebRootPath + "\\Upload\\" + product.Name + ".JPG"))
-                    {
-                        fc.CopyTo(fileStream);
-                        fileStream.Flush();
-                    }
+                    Directory.CreateDirectory($"{_environment.WebRootPath}\\Upload\\");
+                }
 
-                    var list = new List<InputProduct>();
-                    Guid guid = Guid.NewGuid();
-                    InputProduct inputProduct = new InputProduct(product.Name, $"{_environment.WebRootPath}\\Upload\\{product.Name}", guid);
-                    string json = System.IO.File.ReadAllText(path);
+                using FileStream fileStream = System.IO.File.Create($"{_environment.WebRootPath}\\Upload\\{product.Name}.JPG");
+                fc.WriteTo(fileStream);
 
-                    if (json.Length == 0)
-                    {
-                        list.Add(inputProduct);
-                    }
-                    else
-                    {
-                        list = JsonConvert.DeserializeObject<List<InputProduct>>(json);
+                image.Dispose();
 
-                        list.Add(inputProduct);
-                    }
-                    
-                    var convertedJson = JsonConvert.SerializeObject(list, Formatting.Indented);
+                var list = new List<ImageJsonModel>();
+                var guid = Guid.NewGuid();
+                var inputProduct = new ImageJsonModel(product.Name, $"{_environment.WebRootPath}\\Upload\\{product.Name}.JPG", guid);
+                var json = System.IO.File.ReadAllText(jsonFile);
 
-                    System.IO.File.WriteAllText(path, convertedJson);
-
-                    return "\\Upload\\" + product.Name;
+                if (json.Length == 0)
+                {
+                    list.Add(inputProduct);
                 }
                 else
                 {
-                    return "Failed";
+                    list = JsonConvert.DeserializeObject<List<ImageJsonModel>>(json);
+                    list.Add(inputProduct);
                 }
+
+                var convertedJson = JsonConvert.SerializeObject(list, Formatting.Indented);
+                System.IO.File.WriteAllText(jsonFile, convertedJson);
+
+                return Ok();
             }
             catch (Exception ex)
             {
-
-                return ex.Message.ToString();
+                _logger.LogError(ex, "Unable to upload image");
+                return BadRequest(ex.Message);
             }
         }
 
         [HttpGet]
         [Route("get-all")]
-        public async Task<List<InputProduct>> GetAll()
+        public ActionResult<List<ImageJsonModel>> GetAll()
         {
             try
             {
 
-                if (!System.IO.File.Exists(path))
+                if (!System.IO.File.Exists(jsonFile))
                 {
-                    System.IO.File.Create(path);
+                    System.IO.File.Create(jsonFile);
                 }
 
-                string json = System.IO.File.ReadAllText(path);
-                var products = JsonConvert.DeserializeObject<List<InputProduct>>(json);
+                var json = System.IO.File.ReadAllText(jsonFile);
+                var products = JsonConvert.DeserializeObject<List<ImageJsonModel>>(json);
                 return products;
             }
             catch (Exception ex)
             {
-                throw new ArgumentException(ex.Message.ToString());
+                _logger.LogError(ex, "Unable to get all images");
+                return GetExceptionMessage(ex);
             }
         }
 
         [HttpPost]
         [Route("get-by-id")]
-        public async Task<ActionResult<InputProduct>> GetProductById([FromBody] Guid id)
+        public ActionResult<ImageJsonModel> GetProductById([FromBody] Guid id)
         {
             if (id.Equals(Guid.Empty))
             {
@@ -111,11 +114,11 @@ namespace TestProject.Controllers
 
             try
             {
-                string json = System.IO.File.ReadAllText(path);
-                var products = JsonConvert.DeserializeObject<List<InputProduct>>(json);
-                var findedProduct = new InputProduct();
+                var json = System.IO.File.ReadAllText(jsonFile);
+                var products = JsonConvert.DeserializeObject<List<ImageJsonModel>>(json);
+                var findedProduct = new ImageJsonModel();
 
-                foreach(var product in products)
+                foreach (var product in products)
                 {
                     if (product.Id.Equals(id))
                     {
@@ -129,17 +132,18 @@ namespace TestProject.Controllers
                     return NoContent();
                 }
 
-                return findedProduct;
+                return Ok(findedProduct);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                throw new ArgumentNullException(ex.Message.ToString());
+                _logger.LogError(ex, "Unable to get one image by Id");
+                return GetExceptionMessage(ex);
             }
         }
 
         [HttpDelete]
         [Route("delete-by-id")]
-        public async Task<ActionResult> DeleteProductById([FromBody] Guid id)
+        public ActionResult DeleteProductById([FromBody] Guid id)
         {
             if (id.Equals(Guid.Empty))
             {
@@ -148,9 +152,9 @@ namespace TestProject.Controllers
 
             try
             {
-                string json = System.IO.File.ReadAllText(path);
-                var products = JsonConvert.DeserializeObject<List<InputProduct>>(json);
-                var findedProduct = new InputProduct();
+                var json = System.IO.File.ReadAllText(jsonFile);
+                var products = JsonConvert.DeserializeObject<List<ImageJsonModel>>(json);
+                var findedProduct = new ImageJsonModel();
 
                 foreach (var product in products)
                 {
@@ -169,56 +173,80 @@ namespace TestProject.Controllers
                 products.Remove(findedProduct);
 
                 var convertedJson = JsonConvert.SerializeObject(products, Formatting.Indented);
-                System.IO.File.WriteAllText(path, convertedJson);
+                System.IO.File.WriteAllText(jsonFile, convertedJson);
 
                 return Ok();
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                throw new ArgumentException(ex.Message.ToString());
+                _logger.LogError(ex, "Unable to delete images");
+                return GetExceptionMessage(ex);
             }
         }
 
         [HttpPut]
         [Route("update-product")]
-        public async Task<ActionResult<InputProduct>> UpdateProductById([FromBody] InputProduct inputProduct)
+        public ActionResult UpdateProductById([FromBody] ImageModelForUpdate inputProduct)
         {
-            if (inputProduct.Id.Equals(Guid.Empty))
+            if (inputProduct.Id.Equals(Guid.Empty) || inputProduct.Name == default || inputProduct.ImageByteArray == default)
             {
                 return BadRequest(new { errorText = "Incorrect request body." });
             }
 
             try
             {
-                string json = System.IO.File.ReadAllText(path);
-                var products = JsonConvert.DeserializeObject<List<InputProduct>>(json);
-                var findedProduct = new InputProduct();
+                var json = System.IO.File.ReadAllText(jsonFile);
+                var products = JsonConvert.DeserializeObject<List<ImageJsonModel>>(json);
+                var findedProduct = new ImageJsonModel();
 
                 foreach (var product in products)
                 {
                     if (product.Id.Equals(inputProduct.Id))
                     {
+                        using var ms = new MemoryStream(inputProduct.ImageByteArray);
+                        Image image;
+                        image = Image.FromStream(ms);
+
+                        using MemoryStream fc = new MemoryStream();
+                        image.Save(fc, ImageFormat.Jpeg);
+
+                        if (fc.Length > 0)
+                        {
+                            using var fileStream = System.IO.File.Create(_environment.WebRootPath + "\\Upload\\" + inputProduct.Name + ".JPG");
+
+                            fc.WriteTo(fileStream);
+
+                            image.Dispose();
+                        }
+                        else
+                        {
+                            return BadRequest();
+                        }
+
                         product.Name = inputProduct.Name;
-                        product.Path = inputProduct.Path;
+                        product.Path = $"{_environment.WebRootPath}\\Upload\\{inputProduct.Name}.JPG";
                         findedProduct = product;
                         break;
                     }
                 }
 
-                if (findedProduct.Name is null && findedProduct.Path is null)
-                {
-                    return NoContent();
-                }
-
                 var convertedJson = JsonConvert.SerializeObject(products, Formatting.Indented);
-                System.IO.File.WriteAllText(path, convertedJson);
+                System.IO.File.WriteAllText(jsonFile, convertedJson);
 
                 return Ok();
             }
             catch (Exception ex)
             {
-                throw new ArgumentException(ex.Message.ToString());
+                _logger.LogError(ex, "Unable to update image");
+                return GetExceptionMessage(ex);
             }
         }
+
+        private ActionResult GetExceptionMessage(Exception ex) => ex switch
+        {
+            ArgumentNullException => BadRequest("The request has invalid syntax"),
+            KeyNotFoundException => NotFound("The requested resource was not found."),
+            _ => StatusCode(50, "Unknown exception, please contact the System Administrator"),
+        };
     }
 }

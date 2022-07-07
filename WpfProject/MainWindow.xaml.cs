@@ -1,24 +1,12 @@
 ﻿using Microsoft.Win32;
 using System;
-using TestProject;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using TestProject.Controllers;
 using TestProject.Models;
-using Microsoft.AspNetCore.Http;
 using System.Net.Http;
 using Newtonsoft.Json;
+using System.IO;
 
 namespace WpfProject
 {
@@ -27,6 +15,8 @@ namespace WpfProject
     /// </summary>
     public partial class MainWindow : Window
     {
+        public System.Drawing.Image image;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -34,25 +24,63 @@ namespace WpfProject
 
         private void LoadImage_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog openFileDialog = new OpenFileDialog();
+            var openFileDialog = new OpenFileDialog();
             if (openFileDialog.ShowDialog() == true)
             {
-                Uri fileUri = new Uri(openFileDialog.FileName);
+                var fileUri = new Uri(openFileDialog.FileName);
                 imgDynamic.Source = new BitmapImage(fileUri);
+                image = System.Drawing.Image.FromFile(openFileDialog.FileName);
             }
-
-            Path.Text = imgDynamic.Source.ToString();
         }
 
         public async void SendData_Click(object sender, RoutedEventArgs e)
         {
-            var product = new Product { Name = ImageName.Text, Path = imgDynamic.Source.ToString() };
+            var byteArray = default(byte[]);
+            using var memoryStream = new MemoryStream();
 
-            using (HttpClient client = new HttpClient())
+            if (image == default || ImageName.Text.Length == 0)
             {
-                var content = new StringContent(JsonConvert.SerializeObject(product), Encoding.UTF8, "application/json");
-                var result = await client.PostAsync(new Uri("https://localhost:5001/api/Product/uploadImage"), content);
+                MessageBox.Show("Вы не добавили данные");
             }
+            else
+            {
+                image.Save(memoryStream, image.RawFormat);
+                byteArray = memoryStream.ToArray();
+
+                var product = new ImageByteModel { Name = ImageName.Text, ImageByteArray = byteArray };
+
+                using var client = new HttpClient();
+
+                using var content = new StringContent(JsonConvert.SerializeObject(product), Encoding.UTF8, "application/json");
+                using var result = await client.PostAsync(new Uri((string)App.Current.Resources["UploadRequestAdress"]), content);
+
+                if (result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Вы успешно добавили данные");
+                }
+                else
+                {
+                    MessageBox.Show("Данные не были добавлены");
+                }
+            }
+        }
+
+        public void OpenGetOneWindow_Click(object sender, RoutedEventArgs e)
+        {
+            WindowForOneObject windowForOneObject = new WindowForOneObject();
+            windowForOneObject.Show();
+        }
+
+        public void OpenWindowForTable_Click(object sender, RoutedEventArgs e)
+        {
+            WindowForTable windowForTable = new WindowForTable();
+            windowForTable.Show();
+        }
+
+        public void OpenWindowForUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            WindowForUpdate windowForUpdate = new WindowForUpdate();
+            windowForUpdate.Show();
         }
     }
 }
