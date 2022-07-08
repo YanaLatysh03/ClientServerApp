@@ -41,11 +41,14 @@ namespace WpfProject
 
                 listOfAllProducts = JsonConvert.DeserializeObject<List<ImageJsonModel>>(jsonResult);
 
-
                 bindingList = new BindingList<ProductModel>();
 
                 for (int i = 0; i < listOfAllProducts.Count; i++)
                 {
+                    if (!System.IO.File.Exists(listOfAllProducts[i].Path))
+                    {
+                        continue;
+                    }
                     var model = new ProductModel()
                     {
                         Id = listOfAllProducts[i].Id,

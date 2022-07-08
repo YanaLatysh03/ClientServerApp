@@ -24,7 +24,7 @@
                     </Style>
                 </DataGrid.Resources>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Binding="{Binding Path=Id}" Header="Id" Width="200"/>
+                    <DataGridTextColumn Binding="{Binding Path=Id}" Header="Id" Width="250"/>
                     <DataGridTextColumn Binding="{Binding Path=Name}" Header="Name" Width="200"/>
                     <DataGridTemplateColumn Header="Image" Width="*">
                         <DataGridTemplateColumn.CellTemplate>

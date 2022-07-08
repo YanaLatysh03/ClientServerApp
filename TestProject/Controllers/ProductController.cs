@@ -170,7 +170,9 @@ namespace TestProject.Controllers
                     return NoContent();
                 }
 
+                System.IO.File.Delete(findedProduct.Path);
                 products.Remove(findedProduct);
+                
 
                 var convertedJson = JsonConvert.SerializeObject(products, Formatting.Indented);
                 System.IO.File.WriteAllText(jsonFile, convertedJson);
